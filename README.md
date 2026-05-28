@@ -143,6 +143,19 @@ In hPanel → Emails → Email Accounts, create `sales@luminaton.com`. Use that 
 
 See `datasheets/README.md` for the full folder & metadata format.
 
+## Lead activity log + daily digest
+
+Every time a customer signs in to the cabinet or downloads a PDF, the server appends a row to `data/leads.csv` with timestamp, email, file, IP, and user agent. Open the file in Excel, Numbers, or Google Sheets — or import it into your CRM.
+
+Once a day (default 08:00, set with `DIGEST_CRON` + `DIGEST_TIMEZONE` env vars) the server emails a summary of yesterday's activity to `MAIL_TO`: sign-in count, download count, unique customers, top files, and a per-download table. If there was zero activity, no email is sent.
+
+To grab the raw log:
+- **hPanel File Manager** → navigate to `data/leads.csv` → download
+- **SFTP** → same path
+- **SSH** → `cat ~/domains/luminaton.com/public_html/data/leads.csv`
+
+The `data/` folder is gitignored, so the log lives only on the server and never goes to GitHub.
+
 ## Customizing the company-email allowlist
 
 Free / personal email providers are blocked from accessing the cabinet. The block list lives in `lib/auth.js` → `PERSONAL_DOMAINS`. To allow a specific domain, remove it from the set. To block additional domains, add them. After editing, restart the Node app in hPanel.

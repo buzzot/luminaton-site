@@ -17,6 +17,7 @@ const rateLimit = require('express-rate-limit');
 
 const auth = require('../lib/auth');
 const { sendMail } = require('../lib/mailer');
+const { logEvent } = require('../lib/leads');
 
 const router = express.Router();
 
@@ -51,6 +52,7 @@ router.get('/verify', (req, res) => {
     return res.redirect('/cabinet/?error=invalid_or_expired');
   }
   auth.createSession(res, record.email);
+  logEvent({ type: 'signin', email: record.email, req });
   res.redirect('/cabinet/dashboard');
 });
 
@@ -194,6 +196,13 @@ router.get('/files/:category/:file', auth.requireAuthPage('/cabinet/'), (req, re
   if (!fs.existsSync(fullPath)) {
     return res.status(404).send('File not found');
   }
+  logEvent({
+    type: 'download',
+    email: req.session && req.session.email,
+    category,
+    file,
+    req,
+  });
   res.sendFile(fullPath);
 });
 

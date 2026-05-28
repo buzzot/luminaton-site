@@ -16,7 +16,10 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 
+const cron = require('node-cron');
+
 const { sendMail } = require('./lib/mailer');
+const { sendDailyDigest } = require('./lib/digest');
 const cabinetRouter = require('./routes/cabinet');
 
 const app = express();
@@ -125,6 +128,19 @@ app.use(express.static(path.join(__dirname), {
 app.get('*', (_req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
+
+// ---- Daily lead digest ----
+// Default: 08:00 every day in the configured timezone.
+const digestCron = process.env.DIGEST_CRON || '0 8 * * *';
+const digestTz = process.env.DIGEST_TIMEZONE || 'UTC';
+if (cron.validate(digestCron)) {
+  cron.schedule(digestCron, () => {
+    sendDailyDigest().catch(err => console.error('[digest] error:', err));
+  }, { timezone: digestTz });
+  console.log(`Daily digest scheduled: "${digestCron}" (${digestTz})`);
+} else {
+  console.warn(`[digest] invalid cron expression: "${digestCron}" — digest disabled`);
+}
 
 app.listen(PORT, () => {
   console.log(`Luminaton server running on port ${PORT}`);
