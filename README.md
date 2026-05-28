@@ -1,19 +1,50 @@
-# Luminaton — Landing Page
+# Luminaton — Landing Page & Customer Cabinet
 
-Single-page landing site for **Luminaton.com**, a distributor of customized LED modules and LED strip lights. Static front end + small Node.js / Express backend that delivers contact-form submissions to your mailbox by SMTP.
+Single-page landing site for **Luminaton.com**, a distributor of customized LED modules and LED strip lights, plus a customer cabinet behind magic-link email auth where verified business customers can download product datasheets.
 
 ## What's in this folder
 
 ```
 luminaton/
-├── index.html        Landing page (hero, products, about, contact)
-├── styles.css        Clean white theme with soft LED accents
-├── script.js         Mobile nav, scroll reveal, AJAX form submission
-├── server.js         Express server + /api/contact endpoint
-├── package.json      Node dependencies
-├── .env.example      Copy to .env and fill in SMTP credentials
-└── README.md         This file
+├── index.html              Landing page (hero, products, about, contact)
+├── styles.css              Clean white theme with soft LED accents
+├── script.js               Mobile nav, scroll reveal, AJAX form submission
+├── server.js               Express server: contact API, cabinet mount, static
+├── lib/
+│   ├── auth.js             Magic-link tokens, sessions, company-domain check
+│   ├── mailer.js           Shared SMTP transport (Nodemailer)
+│   └── store.js            JSON-backed token & session store (data/*.json)
+├── routes/
+│   └── cabinet.js          Cabinet pages + API (request-link, verify, datasheets)
+├── public/cabinet/
+│   ├── login.html          Email entry page
+│   ├── check-email.html    "We sent you a link" confirmation
+│   ├── dashboard.html      Datasheet library (auth required)
+│   ├── cabinet.css         Cabinet-specific styles
+│   └── cabinet.js          Dashboard logic (list, search, sign out)
+├── datasheets/             Drop PDFs here, organized by category subfolder
+│   ├── README.md           How to add datasheets
+│   ├── led-modules/        (with meta.json + PDFs)
+│   ├── led-strips/
+│   └── accessories/
+├── data/                   Created at runtime; holds tokens.json + sessions.json
+│                           (gitignored — never commit)
+├── package.json
+├── .env.example            Copy to .env and fill in real values
+├── .gitignore
+└── README.md               This file
 ```
+
+## Customer cabinet — how it works
+
+1. Visitor opens `/cabinet/` and enters their **company email**.
+2. Server rejects free / personal mail providers (Gmail, Yahoo, Outlook, iCloud, Proton, Mail.ru, QQ, etc. — full list in `lib/auth.js`).
+3. A one-time sign-in URL is generated (cryptographically random, 15-minute expiry, single-use) and emailed via SMTP.
+4. Customer clicks the link → server validates the token → sets a 30-day HTTP-only session cookie → redirects to `/cabinet/dashboard`.
+5. Dashboard reads the `/datasheets/` folder, displays PDFs by category, supports search and direct download.
+6. PDFs are served through an authenticated route (`/cabinet/files/:category/:file`) — no direct hot-linking.
+
+No password is ever stored. No customer signup form. Adding new datasheets is just "drop a PDF in the right subfolder".
 
 ## Local development
 
@@ -103,6 +134,18 @@ In hPanel → Emails → Email Accounts, create `sales@luminaton.com`. Use that 
 2. `script.js` POSTs JSON to `/api/contact`.
 3. `server.js` validates fields, blocks honeypot bots, rate-limits (8/15min/IP), and emails the message via Nodemailer to `MAIL_TO`.
 4. The reply-to header is set to the visitor's email so you can hit "Reply" directly.
+
+## Adding datasheets to the customer cabinet
+
+1. Upload PDFs into `/datasheets/<category>/` via hPanel File Manager or SFTP.
+2. (Optional) Edit the category's `meta.json` to give files nicer titles + descriptions.
+3. Refresh `/cabinet/dashboard` — no server restart needed.
+
+See `datasheets/README.md` for the full folder & metadata format.
+
+## Customizing the company-email allowlist
+
+Free / personal email providers are blocked from accessing the cabinet. The block list lives in `lib/auth.js` → `PERSONAL_DOMAINS`. To allow a specific domain, remove it from the set. To block additional domains, add them. After editing, restart the Node app in hPanel.
 
 ## Recommendations to take this further
 

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <title>Customer Cabinet — Luminaton</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/cabinet/cabinet.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav-wrapper">
+      <a href="/" class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" width="28" height="28" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="lg1" x1="0" x2="1" y1="0" y2="1">
+                <stop offset="0" stop-color="#FFB400" />
+                <stop offset="1" stop-color="#00B8D4" />
+              </linearGradient>
+            </defs>
+            <circle cx="16" cy="16" r="6" fill="url(#lg1)" />
+          </svg>
+        </span>
+        <span class="brand-name">Luminaton</span>
+      </a>
+      <nav class="primary-nav" aria-label="Primary">
+        <ul class="nav-menu">
+          <li><a href="/#products">Products</a></li>
+          <li><a href="/#contact">Contact</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main class="cabinet-shell">
+    <section class="auth-card">
+      <span class="eyebrow">Customer Cabinet</span>
+      <h1>Sign in to access datasheets</h1>
+      <p class="muted">
+        Enter your company email and we'll send you a one-time sign-in link.
+        No password required.
+      </p>
+
+      <form id="loginForm" novalidate>
+        <div class="form-row">
+          <label for="email">Company email</label>
+          <input type="email" id="email" name="email" required autocomplete="email" placeholder="you@yourcompany.com" />
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="submitBtn">Send sign-in link</button>
+        <p class="form-status" id="formStatus" role="status" aria-live="polite"></p>
+      </form>
+
+      <p class="muted small auth-note">
+        Personal email providers (Gmail, Yahoo, Outlook, etc.) are not accepted. If you need access and only have a personal email, please
+        <a href="/#contact">contact us</a>.
+      </p>
+    </section>
+  </main>
+
+  <script>
+    // Show error from query string if present (e.g., expired token redirect)
+    (function () {
+      const params = new URLSearchParams(window.location.search);
+      const err = params.get('error');
+      if (err === 'invalid_or_expired') {
+        const s = document.getElementById('formStatus');
+        s.textContent = 'That sign-in link is invalid or has expired. Please request a new one.';
+        s.classList.add('error');
+      }
+    })();
+
+    const form = document.getElementById('loginForm');
+    const statusEl = document.getElementById('formStatus');
+    const submitBtn = document.getElementById('submitBtn');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      statusEl.textContent = '';
+      statusEl.className = 'form-status';
+
+      const email = form.email.value.trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        statusEl.textContent = 'Please enter a valid email address.';
+        statusEl.classList.add('error');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      const orig = submitBtn.textContent;
+      submitBtn.textContent = 'Sending…';
+
+      try {
+        const res = await fetch('/cabinet/api/request-link', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json.ok) throw new Error(json.error || 'Could not send link');
+
+        // Redirect to confirmation page
+        window.location.href = '/cabinet/check-email?to=' + encodeURIComponent(email);
+      } catch (err) {
+        statusEl.textContent = err.message || 'Something went wrong. Please try again.';
+        statusEl.classList.add('error');
+        submitBtn.disabled = false;
+        submitBtn.textContent = orig;
+      }
+    });
+  </script>
+</body>
+</html>

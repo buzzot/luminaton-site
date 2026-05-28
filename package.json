@@ -1,7 +1,7 @@
 {
   "name": "luminaton",
-  "version": "1.0.0",
-  "description": "Luminaton — customized LED modules & LED strip lights distributor. Landing page with Node.js contact-form backend, designed for Hostinger.",
+  "version": "1.1.0",
+  "description": "Luminaton — customized LED modules & LED strip lights distributor. Landing page + customer cabinet with magic-link email auth. Built for Hostinger.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -11,6 +11,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
+    "cookie-parser": "^1.4.6",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "express-rate-limit": "^7.4.0",

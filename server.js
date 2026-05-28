@@ -1,81 +1,72 @@
 /**
  * Luminaton — Node.js / Express backend
  *
- * Serves the static landing page and exposes POST /api/contact,
- * which validates the submission and emails it via SMTP (Nodemailer).
+ * Serves:
+ *   - The static landing page (index.html, styles.css, script.js at project root)
+ *   - The /cabinet customer area (magic-link auth, datasheets library)
+ *   - POST /api/contact (quote requests from the main site)
  *
- * Designed to run on Hostinger Business / Cloud hosting with Node.js enabled,
- * or any Node host (Render, Railway, VPS). See README.md for deployment notes.
+ * Runs on Hostinger Business/Cloud/VPS with Node.js enabled. See README.md.
  */
 
 require('dotenv').config();
 
 const path = require('path');
 const express = require('express');
+const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
-const nodemailer = require('nodemailer');
+
+const { sendMail } = require('./lib/mailer');
+const cabinetRouter = require('./routes/cabinet');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Trust proxy when running behind Hostinger's reverse proxy / any PaaS
+// ---- Core middleware ----
 app.set('trust proxy', 1);
-
 app.use(express.json({ limit: '32kb' }));
 app.use(express.urlencoded({ extended: true, limit: '32kb' }));
+app.use(cookieParser());
 
-// Serve static files (index.html, styles.css, script.js)
-app.use(express.static(path.join(__dirname), {
-  extensions: ['html'],
-  maxAge: '1h',
-}));
+// ---- Security: block direct fetches of source / config files ----
+const BLOCKED_EXACT = new Set([
+  '/server.js', '/package.json', '/package-lock.json',
+  '/.env', '/.env.example', '/.gitignore', '/README.md',
+]);
+const BLOCKED_PREFIXES = ['/lib/', '/routes/', '/data/', '/node_modules/', '/.git/'];
 
-// Rate-limit the contact endpoint to deter abuse
+app.use((req, res, next) => {
+  if (BLOCKED_EXACT.has(req.path)) return res.status(404).send('Not found');
+  if (BLOCKED_PREFIXES.some(p => req.path.startsWith(p))) return res.status(404).send('Not found');
+  next();
+});
+
+// ---- Cabinet static assets (CSS, JS) — explicit, no .html exposed ----
+app.get('/cabinet/cabinet.css', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'cabinet', 'cabinet.css')));
+app.get('/cabinet/cabinet.js', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'cabinet', 'cabinet.js')));
+
+// ---- Cabinet router (login / verify / dashboard / API / PDF download) ----
+app.use('/cabinet', cabinetRouter);
+
+// ---- Contact form (main site) ----
 const contactLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 min
+  windowMs: 15 * 60 * 1000,
   max: 8,
   standardHeaders: true,
   legacyHeaders: false,
   message: { ok: false, error: 'Too many requests. Please try again later.' },
 });
 
-// Build SMTP transporter (verified lazily)
-function buildTransport() {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT || 465),
-    secure: String(process.env.SMTP_SECURE || 'true') === 'true',
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
-}
-
 function escapeHtml(s = '') {
   return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 app.post('/api/contact', contactLimiter, async (req, res) => {
   try {
-    const {
-      name = '',
-      email = '',
-      company = '',
-      product = '',
-      message = '',
-      website = '', // honeypot
-    } = req.body || {};
-
-    // Honeypot: if filled, silently accept and discard
-    if (website && website.trim() !== '') {
-      return res.json({ ok: true });
-    }
+    const { name = '', email = '', company = '', product = '', message = '', website = '' } = req.body || {};
+    if (website && website.trim() !== '') return res.json({ ok: true }); // honeypot
 
     const cleanName = String(name).trim().slice(0, 120);
     const cleanEmail = String(email).trim().slice(0, 200);
@@ -91,26 +82,15 @@ app.post('/api/contact', contactLimiter, async (req, res) => {
     }
 
     const to = process.env.MAIL_TO || 'sales@luminaton.com';
-    const from = process.env.MAIL_FROM || `Luminaton Website <no-reply@luminaton.com>`;
-
     const subject = `New quote request — ${cleanName}${cleanCompany ? ' (' + cleanCompany + ')' : ''}`;
-    const textBody = [
-      `New website inquiry`,
-      `------------------------------`,
-      `Name:     ${cleanName}`,
-      `Email:    ${cleanEmail}`,
-      `Company:  ${cleanCompany || '-'}`,
-      `Interest: ${cleanProduct || '-'}`,
-      ``,
-      `Message:`,
-      cleanMessage,
-      ``,
-      `------------------------------`,
-      `Submitted: ${new Date().toISOString()}`,
-      `IP:        ${req.ip}`,
+    const text = [
+      `New website inquiry`, `------------------------------`,
+      `Name:     ${cleanName}`, `Email:    ${cleanEmail}`,
+      `Company:  ${cleanCompany || '-'}`, `Interest: ${cleanProduct || '-'}`,
+      ``, `Message:`, cleanMessage, ``,
+      `Submitted: ${new Date().toISOString()}`, `IP:        ${req.ip}`,
     ].join('\n');
-
-    const htmlBody = `
+    const html = `
       <div style="font-family:Inter,Arial,sans-serif;line-height:1.5;color:#1a2233;">
         <h2 style="margin:0 0 12px;">New quote request</h2>
         <table cellpadding="6" style="border-collapse:collapse;">
@@ -121,28 +101,9 @@ app.post('/api/contact', contactLimiter, async (req, res) => {
         </table>
         <h3 style="margin-top:18px;">Message</h3>
         <p style="white-space:pre-wrap;">${escapeHtml(cleanMessage)}</p>
-        <hr/>
-        <p style="font-size:12px;color:#888;">Submitted ${new Date().toUTCString()} · IP ${escapeHtml(req.ip)}</p>
-      </div>
-    `;
+      </div>`;
 
-    // If SMTP isn't configured, fall back to console logging so the site doesn't crash in dev
-    if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
-      console.warn('[contact] SMTP not configured — logging submission instead:');
-      console.warn(textBody);
-      return res.json({ ok: true, dev: true });
-    }
-
-    const transporter = buildTransport();
-    await transporter.sendMail({
-      from,
-      to,
-      replyTo: cleanEmail,
-      subject,
-      text: textBody,
-      html: htmlBody,
-    });
-
+    await sendMail({ to, subject, text, html, replyTo: cleanEmail });
     return res.json({ ok: true });
   } catch (err) {
     console.error('[contact] error:', err);
@@ -150,10 +111,17 @@ app.post('/api/contact', contactLimiter, async (req, res) => {
   }
 });
 
-// Health check
+// ---- Health check ----
 app.get('/healthz', (_req, res) => res.json({ ok: true }));
 
-// SPA-ish fallback: always serve index.html for unknown GETs
+// ---- Main site static files (root level: index.html, styles.css, script.js) ----
+app.use(express.static(path.join(__dirname), {
+  extensions: ['html'],
+  maxAge: '1h',
+  dotfiles: 'deny',
+}));
+
+// ---- Fallback: serve homepage for unknown GETs ----
 app.get('*', (_req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
