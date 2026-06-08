@@ -143,11 +143,17 @@ In hPanel → Emails → Email Accounts, create `sales@luminaton.com`. Use that 
 
 See `datasheets/README.md` for the full folder & metadata format.
 
-## Lead activity log + daily digest
+## Lead activity log + email notifications
 
-Every time a customer signs in to the cabinet or downloads a PDF, the server appends a row to `data/leads.csv` with timestamp, email, file, IP, and user agent. Open the file in Excel, Numbers, or Google Sheets — or import it into your CRM.
+Every time a customer signs in to the cabinet or downloads a PDF, three things happen:
+
+1. **An event is appended** to `data/leads.csv` with timestamp, email, file, IP, and user agent. Open the file in Excel, Numbers, or Google Sheets — or import it into your CRM.
+2. **An instant email** goes to `MAIL_TO` describing the event. Set `INSTANT_NOTIFICATIONS=false` to silence individual notifications and rely on the digest emails only.
+3. **Two scheduled emails** keep you informed even if you ignore the per-event ones.
 
 Once a day (default 08:00, set with `DIGEST_CRON` + `DIGEST_TIMEZONE` env vars) the server emails a summary of yesterday's activity to `MAIL_TO`: sign-in count, download count, unique customers, top files, and a per-download table. If there was zero activity, no email is sent.
+
+Once a week (default Monday 08:00, set with `WEEKLY_CSV_CRON`) the server emails the **entire `leads.csv` file as an attachment** to `MAIL_TO`, with a dated filename (`luminaton-leads-YYYY-MM-DD.csv`). Use this as your weekly backup or to import into a CRM.
 
 To grab the raw log:
 - **hPanel File Manager** → navigate to `data/leads.csv` → download

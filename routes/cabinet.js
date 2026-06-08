@@ -18,6 +18,7 @@ const rateLimit = require('express-rate-limit');
 const auth = require('../lib/auth');
 const { sendMail } = require('../lib/mailer');
 const { logEvent } = require('../lib/leads');
+const { sendInstantSignIn, sendInstantDownload } = require('../lib/notifications');
 
 const router = express.Router();
 
@@ -53,6 +54,9 @@ router.get('/verify', (req, res) => {
   }
   auth.createSession(res, record.email);
   logEvent({ type: 'signin', email: record.email, req });
+  // Fire-and-forget instant notification — never block the redirect on SMTP
+  sendInstantSignIn({ email: record.email, req })
+    .catch(err => console.warn('[notify] signin email failed:', err.message));
   res.redirect('/cabinet/dashboard');
 });
 
@@ -196,13 +200,11 @@ router.get('/files/:category/:file', auth.requireAuthPage('/cabinet/'), (req, re
   if (!fs.existsSync(fullPath)) {
     return res.status(404).send('File not found');
   }
-  logEvent({
-    type: 'download',
-    email: req.session && req.session.email,
-    category,
-    file,
-    req,
-  });
+  const email = req.session && req.session.email;
+  logEvent({ type: 'download', email, category, file, req });
+  // Fire-and-forget instant notification — never block the file response on SMTP
+  sendInstantDownload({ email, category, file, req })
+    .catch(err => console.warn('[notify] download email failed:', err.message));
   res.sendFile(fullPath);
 });
 

@@ -19,7 +19,7 @@ const rateLimit = require('express-rate-limit');
 const cron = require('node-cron');
 
 const { sendMail } = require('./lib/mailer');
-const { sendDailyDigest } = require('./lib/digest');
+const { sendDailyDigest, sendWeeklyCsv } = require('./lib/digest');
 const cabinetRouter = require('./routes/cabinet');
 
 const app = express();
@@ -131,8 +131,8 @@ app.get('*', (_req, res) => {
 
 // ---- Daily lead digest ----
 // Default: 08:00 every day in the configured timezone.
-const digestCron = process.env.DIGEST_CRON || '0 8 * * *';
 const digestTz = process.env.DIGEST_TIMEZONE || 'UTC';
+const digestCron = process.env.DIGEST_CRON || '0 8 * * *';
 if (cron.validate(digestCron)) {
   cron.schedule(digestCron, () => {
     sendDailyDigest().catch(err => console.error('[digest] error:', err));
@@ -140,6 +140,18 @@ if (cron.validate(digestCron)) {
   console.log(`Daily digest scheduled: "${digestCron}" (${digestTz})`);
 } else {
   console.warn(`[digest] invalid cron expression: "${digestCron}" — digest disabled`);
+}
+
+// ---- Weekly leads.csv export ----
+// Default: Monday 08:00 in the configured timezone.
+const weeklyCron = process.env.WEEKLY_CSV_CRON || '0 8 * * 1';
+if (cron.validate(weeklyCron)) {
+  cron.schedule(weeklyCron, () => {
+    sendWeeklyCsv().catch(err => console.error('[weekly-csv] error:', err));
+  }, { timezone: digestTz });
+  console.log(`Weekly leads.csv export scheduled: "${weeklyCron}" (${digestTz})`);
+} else {
+  console.warn(`[weekly-csv] invalid cron expression: "${weeklyCron}" — weekly export disabled`);
 }
 
 app.listen(PORT, () => {
