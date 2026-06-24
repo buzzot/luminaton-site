@@ -47,7 +47,13 @@ app.use((req, res, next) => {
 
 // ---- Cabinet static assets — serve only .css and .js from public/cabinet/.
 // .html files are intentionally NOT exposed via static; the router serves them with auth.
-const cabinetStatic = express.static(path.join(__dirname, 'public', 'cabinet'), { fallthrough: true });
+// Use no-cache so browsers always revalidate — keeps the UI fresh after every deploy.
+const cabinetStatic = express.static(path.join(__dirname, 'public', 'cabinet'), {
+  fallthrough: true,
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+  },
+});
 app.use('/cabinet', (req, res, next) => {
   if (/\.(css|js)$/i.test(req.path)) return cabinetStatic(req, res, next);
   return next();
@@ -124,10 +130,15 @@ app.post('/api/contact', contactLimiter, async (req, res) => {
 app.get('/healthz', (_req, res) => res.json({ ok: true }));
 
 // ---- Main site static files (root level: index.html, styles.css, script.js) ----
+// no-cache so deploys are visible immediately. ETag still keeps revalidation cheap (304).
 app.use(express.static(path.join(__dirname), {
   extensions: ['html'],
-  maxAge: '1h',
   dotfiles: 'deny',
+  setHeaders: (res, filePath) => {
+    if (/\.(css|js|html)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+    }
+  },
 }));
 
 // ---- Fallback: serve homepage for unknown GETs ----
