@@ -129,7 +129,7 @@ router.post('/api/logout', (req, res) => {
 router.get('/api/session', (req, res) => {
   const session = auth.getSessionFromReq(req);
   if (!session) return res.status(401).json({ ok: false });
-  res.json({ ok: true, email: session.email });
+  res.json({ ok: true, email: session.email, isAdmin: auth.isAdmin(session.email) });
 });
 
 // ---------- Datasheets discovery ----------

@@ -21,6 +21,7 @@ const cron = require('node-cron');
 const { sendMail } = require('./lib/mailer');
 const { sendDailyDigest, sendWeeklyCsv } = require('./lib/digest');
 const cabinetRouter = require('./routes/cabinet');
+const inquiriesRouter = require('./routes/inquiries');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -44,12 +45,17 @@ app.use((req, res, next) => {
   next();
 });
 
-// ---- Cabinet static assets (CSS, JS) — explicit, no .html exposed ----
-app.get('/cabinet/cabinet.css', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'cabinet', 'cabinet.css')));
-app.get('/cabinet/cabinet.js', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'cabinet', 'cabinet.js')));
+// ---- Cabinet static assets — serve only .css and .js from public/cabinet/.
+// .html files are intentionally NOT exposed via static; the router serves them with auth.
+const cabinetStatic = express.static(path.join(__dirname, 'public', 'cabinet'), { fallthrough: true });
+app.use('/cabinet', (req, res, next) => {
+  if (/\.(css|js)$/i.test(req.path)) return cabinetStatic(req, res, next);
+  return next();
+});
 
-// ---- Cabinet router (login / verify / dashboard / API / PDF download) ----
+// ---- Cabinet routers ----
 app.use('/cabinet', cabinetRouter);
+app.use('/cabinet', inquiriesRouter);
 
 // ---- Contact form (main site) ----
 const contactLimiter = rateLimit({

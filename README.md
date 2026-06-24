@@ -162,6 +162,30 @@ To grab the raw log:
 
 The `data/` folder is gitignored, so the log lives only on the server and never goes to GitHub.
 
+## Customer inquiries + admin panel
+
+Customers in the cabinet can submit project inquiries through `/cabinet/inquiries/new`:
+
+- **Required fields:** project name, project description, attachments (1–10 files, 10 MB each), contact name, contact phone, contact email.
+- **Allowed file types:** PDF, common Office (`docx`, `xlsx`, `pptx`), images (`jpg`, `png`, `webp`, etc.), CAD (`dwg`, `dxf`, `step`, `stp`, `iges`, `stl`), design (`ai`, `psd`, `eps`), archives (`zip`, `rar`, `7z`). Executables and scripts are blocked.
+- **Customer view:** under "My Inquiries" each customer sees only their own inquiries, with date, project name, attachment count, and status.
+- **Email notification:** every new inquiry triggers an email to `MAIL_TO` + any extra emails in `ADMIN_EMAILS`. If total attachments are ≤ 25 MB they are included as actual email attachments; otherwise the email lists the filenames and links to the admin panel.
+
+### Admin panel
+
+Visit `/cabinet/admin` while signed in as an admin email. Admins are determined by:
+1. The address in `MAIL_TO` (always admin)
+2. Any extra addresses in the `ADMIN_EMAILS` env var (comma-separated)
+
+The admin panel shows every inquiry with search, status filter, and inline status change (New → In Review → Quoted → Closed). Click a row to open the full detail page with all attachments.
+
+### Where the data lives
+
+- **Inquiry records:** `data/inquiries.json` (gitignored).
+- **Attachments:** `data/inquiry-attachments/<inquiry-id>/*`.
+
+These files persist across deploys as long as you don't wipe the `data/` folder. Back them up periodically (the weekly `leads.csv` email already gives you a partial backup of the leads log, but inquiry attachments need separate backup — easiest is to SFTP the `data/inquiry-attachments/` folder once a month).
+
 ## Customizing the company-email allowlist
 
 Free / personal email providers are blocked from accessing the cabinet. The block list lives in `lib/auth.js` → `PERSONAL_DOMAINS`. To allow a specific domain, remove it from the set. To block additional domains, add them. After editing, restart the Node app in hPanel.

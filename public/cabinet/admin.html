@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex" />
-  <title>Datasheets — Luminaton Customer Cabinet</title>
+  <title>Admin — Luminaton Customer Cabinet</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -17,13 +17,8 @@
       <a href="/" class="brand">
         <span class="brand-mark" aria-hidden="true">
           <svg viewBox="0 0 32 32" width="28" height="28" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id="dg1" x1="0" x2="1" y1="0" y2="1">
-                <stop offset="0" stop-color="#FFB400" />
-                <stop offset="1" stop-color="#00B8D4" />
-              </linearGradient>
-            </defs>
-            <circle cx="16" cy="16" r="6" fill="url(#dg1)" />
+            <defs><linearGradient id="ag1" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#FFB400"/><stop offset="1" stop-color="#00B8D4"/></linearGradient></defs>
+            <circle cx="16" cy="16" r="6" fill="url(#ag1)" />
           </svg>
         </span>
         <span class="brand-name">Luminaton</span>
@@ -39,31 +34,32 @@
 
   <div class="cabinet-subnav-wrapper">
     <div class="container cabinet-subnav" id="subnav">
-      <a href="/cabinet/dashboard" class="active">Datasheets</a>
+      <a href="/cabinet/dashboard">Datasheets</a>
       <a href="/cabinet/inquiries/">My Inquiries</a>
-      <a href="/cabinet/admin" class="admin-only" hidden>Admin</a>
+      <a href="/cabinet/admin" class="admin-only active" hidden>Admin</a>
     </div>
   </div>
 
   <main class="container cabinet-main">
-    <header class="cabinet-head">
-      <span class="eyebrow">Customer Cabinet</span>
-      <h1>Product Datasheets</h1>
-      <p class="muted">
-        Download technical specifications for every Luminaton product line.
-        Looking for something specific? <a href="/#contact">Get in touch</a> and we'll send it directly.
-      </p>
-      <div class="cabinet-search">
-        <input type="search" id="search" placeholder="Search datasheets…" aria-label="Search datasheets" />
+    <header class="cabinet-head left">
+      <h1>Inquiries — Admin</h1>
+      <p class="muted">All customer inquiries across the cabinet. Change status inline, click a row for the full detail page.</p>
+
+      <div class="admin-toolbar">
+        <input type="search" id="search" placeholder="Search project, customer, contact…" />
+        <select id="statusFilter">
+          <option value="">All statuses</option>
+        </select>
+        <span class="muted small" id="countLabel"></span>
       </div>
     </header>
 
-    <section id="catalog" class="catalog">
-      <p class="muted" id="loadingMsg">Loading datasheets…</p>
+    <section id="adminContainer">
+      <p class="muted" id="loadingMsg">Loading…</p>
     </section>
   </main>
 
   <script src="/cabinet/cabinet-shared.js" defer></script>
-  <script src="/cabinet/cabinet.js" defer></script>
+  <script src="/cabinet/admin.js" defer></script>
 </body>
 </html>

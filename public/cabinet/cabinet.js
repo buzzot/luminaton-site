@@ -1,23 +1,9 @@
-/* Customer cabinet dashboard — list & search datasheets */
+/* Customer cabinet dashboard — list & search datasheets.
+   Session header and logout are handled by /cabinet/cabinet-shared.js. */
 
 let ALL_CATEGORIES = [];
 
 async function init() {
-  // Fetch session info for the header
-  try {
-    const s = await fetch('/cabinet/api/session');
-    if (s.ok) {
-      const data = await s.json();
-      if (data.email) document.getElementById('userEmail').textContent = data.email;
-    }
-  } catch {}
-
-  // Logout
-  document.getElementById('logoutBtn').addEventListener('click', async () => {
-    await fetch('/cabinet/api/logout', { method: 'POST' });
-    window.location.href = '/cabinet/';
-  });
-
   // Load datasheets
   try {
     const res = await fetch('/cabinet/api/datasheets');
